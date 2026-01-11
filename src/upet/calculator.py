@@ -1,6 +1,5 @@
 import logging
 import os
-import warnings
 from typing import List, Optional, Tuple, Union
 
 import ase.calculators.calculator
@@ -12,12 +11,16 @@ from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalcu
 from packaging.version import Version
 from platformdirs import user_cache_dir
 
-from ._models import _get_bandgap_model, get_pet_mad, get_pet_mad_dos
+from ._models import (
+    _get_bandgap_model,
+    get_pet_mad_dos,
+    get_upet,
+    upet_get_size_to_load,
+    upet_get_version_to_load,
+)
 from ._version import (
     PET_MAD_DOS_LATEST_STABLE_VERSION,
-    PET_MAD_LATEST_STABLE_VERSION,
-    PET_MAD_NC_AVAILABILITY_VERSION,
-    PET_MAD_UQ_AVAILABILITY_VERSION,
+    UPET_AVAILABLE_MODELS,
 )
 from .utils import (
     fermi_dirac_distribution,
@@ -35,36 +38,53 @@ DTYPE_TO_STR = {
 }
 
 
-class PETMADCalculator(ase.calculators.calculator.Calculator):
+class UPETCalculator(ase.calculators.calculator.Calculator):
     """
-    PET-MAD ASE Calculator
+    ASE Calculator for universal MLIPs based on the PET architecture.
     """
 
     def __init__(
         self,
+        model: str,
         version: str = "latest",
+        dtype: Optional[torch.dtype] = None,
         checkpoint_path: Optional[str] = None,
         calculate_uncertainty: bool = False,
         calculate_ensemble: bool = False,
         rotational_average_order: Optional[int] = None,
-        rotational_average_num_additional_rotations: int = 1,
         rotational_average_batch_size: Optional[int] = None,
-        dtype: Optional[torch.dtype] = None,
         *,
-        check_consistency: bool = False,
         device: Optional[str] = None,
         non_conservative: bool = False,
+        check_consistency: bool = False,
     ):
         """
-        :param version: PET-MAD version to use. Defaults to the latest stable version.
-        :param checkpoint_path: path to a checkpoint file to load the model from. If
-            provided, the `version` parameter is ignored.
+        :param model: PET-MLIP model to use. Can be one of the following:
+            - "pet-mad-s": PET-MAD model (size "s', materials and molecules, PBEsol)
+            - "pet-omad-l": PET-OMAD model (size "l", materials and molecules, PBEsol,
+                slower and more accurate)
+            - "pet-omat-xs": PET-OMat model (size "xs", materials, PBE)
+            - "pet-omat-s": PET-OMat model (size "s", materials, PBE)
+            - "pet-omat-m": PET-OMat model (size "m", materials, PBE)
+            - "pet-omat-l": PET-OMat model (size "l", materials, PBE)
+            - "pet-omat-xl": PET-OMat model (size "xl", materials, PBE)
+            - "pet-oam-l": PET-OAM model (size "l", materials,
+                Materials-Project-consistent PBE)
+            - "pet-oam-xl": PET-OAM model (size "xl", materials,
+                Materials-Project-consistent PBE)
+            - "pet-omatpes-l": PET-OMATPES model (size "l", materials, r2SCAN)
+            - "pet-spice-s": PET-SPICE model (size "s", molecules, ωB97M-D3)
+            - "pet-spice-l": PET-SPICE model (size "l", molecules, ωB97M-D3)
+        :param version: version of the model to use. Defaults to the latest stable
+            version.
+        :param dtype: dtype to use for the calculations. If `None`, we will use the
+            default dtype.
+        :param checkpoint_path: checkpoint path to a checkpoint file to load the model
+            from. Mainly designed for loading fine-tuned models.
         :param calculate_uncertainty: whether to calculate energy uncertainty.
             Defaults to False. Only available for PET-MAD version 1.0.2.
         :param calculate_ensemble: whether to calculate energy ensemble.
             Defaults to False. Only available for PET-MAD version 1.0.2.
-        :param check_consistency: should we check the model for consistency when
-            running, defaults to False.
         :param rotational_average_order: order of the Lebedev-Laikov grid used for
             averaging the prediction over rotations.
         :param rotational_average_num_additional_rotations: the number of additional
@@ -74,83 +94,80 @@ class PETMADCalculator(ase.calculators.calculator.Calculator):
             is used for rotational averaging.
         :param rotational_average_batch_size: batch size to use for the rotational
             averaging. If `None`, all rotations will be computed at once.
-        :param dtype: dtype to use for the calculations. If `None`, we will use the
-            default dtype.
         :param device: torch device to use for the calculation. If `None`, we will try
             the options in the model's `supported_device` in order.
         :param non_conservative: whether to use the non-conservative regime of forces
-            and stresses prediction. Defaults to False. Only available for PET-MAD
-            version 1.1.0 or higher.
-
+            and stresses prediction. Defaults to False. Available for all models,
+            except:
+                - PET-MAD models with version < 1.1.0
+                - PET-SPICE models
+        :param check_consistency: whether internal consistency checks should be
+            performed. Mainly for developers, defaults to False.
         """
         super().__init__()
 
-        if version == "latest":
-            version = Version(PET_MAD_LATEST_STABLE_VERSION)
+        if model.lower() not in UPET_AVAILABLE_MODELS:
+            raise ValueError(
+                f"Model {model} is not available. Please select one of the following: "
+                f"{UPET_AVAILABLE_MODELS}"
+            )
+        model, size = model.rsplit("-", 1)
+        size = upet_get_size_to_load(model, requested_size=size)
+        version = upet_get_version_to_load(model, size, requested_version=version)
 
         if not isinstance(version, Version):
             version = Version(version)
 
-        self.version = version
+        loaded_model = get_upet(
+            model=model,
+            size=size,  # type: ignore
+            version=version,
+            checkpoint_path=checkpoint_path,
+        )
 
-        if non_conservative and self.version < Version(PET_MAD_NC_AVAILABILITY_VERSION):
-            raise NotImplementedError(
-                f"Non-conservative forces and stresses are not available for version "
-                f"{self.version}. Please use PET-MAD version "
-                f"{PET_MAD_NC_AVAILABILITY_VERSION} or higher."
-            )
-
-        if calculate_uncertainty or calculate_ensemble:
-            if self.version < Version(PET_MAD_UQ_AVAILABILITY_VERSION):
+        model_outputs = loaded_model.capabilities().outputs
+        if non_conservative:
+            # Check for "non_conservative_{forces/stress} availability"
+            if (
+                "non_conservative_forces" not in model_outputs
+                or "non_conservative_stress" not in model_outputs
+            ):
                 raise NotImplementedError(
-                    f"Energy uncertainty and ensemble are not available for version "
-                    f"{self.version}. Please use PET-MAD version "
-                    f"{PET_MAD_UQ_AVAILABILITY_VERSION} or higher, or disable the "
-                    "calculation of energy uncertainty and energy ensemble."
+                    "Non-conservative forces and stresses are not available for the "
+                    f"model {model.lower()}. Please check the documentation of this "
+                    "class for more information."
                 )
-            else:
-                if calculate_uncertainty:
-                    warnings.warn(
-                        "`calculate_uncertainty` is deprecated, you can directly call "
-                        "`calculator.get_energy_uncertainty(atoms)`",
-                        stacklevel=2,
-                    )
-                if calculate_ensemble:
-                    warnings.warn(
-                        "`calculate_ensemble` is deprecated, you can directly call "
-                        "`calculator.get_energy_ensemble(atoms)`",
-                        stacklevel=2,
-                    )
-
-        model = get_pet_mad(version=version, checkpoint_path=checkpoint_path)
+        if calculate_uncertainty or calculate_ensemble:
+            if (
+                "energy_uncertainty" not in model_outputs
+                or "energy_ensemble" not in model_outputs
+            ):
+                raise NotImplementedError(
+                    "Energy uncertainty and ensemble are not available for the "
+                    f"model {model.lower()}. Please check the documentation of this "
+                    "class for more information."
+                )
+            self._uq_is_available = True
+        else:
+            self._uq_is_available = False
 
         if dtype is not None:
             if isinstance(dtype, str):
                 assert dtype in STR_TO_DTYPE, f"Invalid dtype: {dtype}"
                 dtype = STR_TO_DTYPE[dtype]
-            model._capabilities.dtype = DTYPE_TO_STR[dtype]
-            model = model.to(dtype=dtype, device=device)
+            loaded_model._capabilities.dtype = DTYPE_TO_STR[dtype]
+            loaded_model = loaded_model.to(dtype=dtype, device=device)
 
-        cache_dir = user_cache_dir("pet-mad", "metatensor")
+        cache_dir = user_cache_dir("upet", "metatensor")
         os.makedirs(cache_dir, exist_ok=True)
 
-        extensions_directory = None
-        if version == Version("1.0.0"):
-            extensions_directory = "extensions"
-
-        pt_path = cache_dir + f"/pet-mad-{version}.pt"
-        extensions_directory = (
-            (cache_dir + "/" + extensions_directory)
-            if extensions_directory is not None
-            else None
-        )
-
+        pt_path = cache_dir + f"/{model}-{size}-v{version}.pt"
         logging.info(f"Exporting checkpoint to TorchScript at {pt_path}")
-        model.save(pt_path, collect_extensions=extensions_directory)
+        loaded_model.save(pt_path, collect_extensions=None)
 
         self.calculator = MetatomicCalculator(
             pt_path,
-            extensions_directory=extensions_directory,
+            extensions_directory=None,
             check_consistency=check_consistency,
             device=device,
             non_conservative=non_conservative,
@@ -158,13 +175,6 @@ class PETMADCalculator(ase.calculators.calculator.Calculator):
         self.implemented_properties = self.calculator.implemented_properties
 
         if rotational_average_order is not None:
-            if rotational_average_num_additional_rotations != 1:
-                warnings.warn(
-                    "`rotational_average_num_additional_rotations` is deprecated and "
-                    "does nothing.",
-                    stacklevel=2,
-                )
-
             self.calculator = SymmetrizedCalculator(
                 self.calculator,
                 l_max=rotational_average_order,
@@ -191,6 +201,7 @@ class PETMADCalculator(ase.calculators.calculator.Calculator):
         averaging will be performed in batches of the given size to avoid out of memory
         errors.
         """
+
         super().calculate(
             atoms=atoms,
             properties=properties,
@@ -211,12 +222,6 @@ class PETMADCalculator(ase.calculators.calculator.Calculator):
         :param per_atom: Whether to return the energy uncertainty per atom.
         :return: Energy uncertainty in numpy.ndarray format.
         """
-        if self.version < Version(PET_MAD_UQ_AVAILABILITY_VERSION):
-            raise NotImplementedError(
-                f"Energy uncertainty is not available for version {self.version}. "
-                f"Please use PET-MAD v{PET_MAD_UQ_AVAILABILITY_VERSION} or higher."
-            )
-
         if atoms is None:
             if self.atoms is None:
                 raise ValueError(
@@ -248,11 +253,6 @@ class PETMADCalculator(ase.calculators.calculator.Calculator):
         :param per_atom: Whether to return the energies per atom.
         :return: Energy uncertainty in numpy.ndarray format.
         """
-        if self.version < Version(PET_MAD_UQ_AVAILABILITY_VERSION):
-            raise NotImplementedError(
-                f"Energy ensemble is not available for version {self.version}. "
-                f"Please use PET-MAD v{PET_MAD_UQ_AVAILABILITY_VERSION} or higher."
-            )
 
         if atoms is None:
             if self.atoms is None:

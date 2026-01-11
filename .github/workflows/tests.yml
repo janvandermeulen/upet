@@ -34,7 +34,7 @@ jobs:
 
     - name: run Python tests
       run: |
-        tox -e pet-mad-tests
+        tox -e upet-tests
         tox -e pet-mad-dos-tests
       env:
         # Use the CPU only version of torch when building/running the code

@@ -1,4 +1,4 @@
-from pet_mad.utils import get_pet_mad_dos_metadata
+from upet._metadata import get_pet_mad_dos_metadata
 
 
 def test_get_metadata():
