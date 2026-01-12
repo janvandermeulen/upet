@@ -25,7 +25,7 @@ calculator = UPETCalculator(model="pet-oam-xl", version="1.0.0", device="cuda")
 # UPET: Universal Models for Advanced Atomistic Simulations
 
 This repository contains **UPET** models - universal interatomic potentials for
-advanced materials modeling across the periodic table. This models are based on
+advanced materials modeling across the periodic table. These models are based on
 the **Point Edge Transformer (PET)**  architecture, trained on various popular 
 materials datasets, and are capable of predicting energies and forces in complex
 atomistic simulations.
@@ -112,9 +112,10 @@ UPET integrates with the following atomistic simulation engines:
 
 #### Basic usage
 
-You can use the UPET calculator, which is compatible with the Atomic
+In order to perform a simple evaluation of the UPET models on a desired
+structure, you can use the UPET calculator compatible with the Atomic
 Simulation Environment (ASE). Model name can be obtained from the
-by combining the model name and the size, e.g., `pet-mad-s`, `pet-omat-l`, etc.
+table above by combining the model name and the size, e.g., `pet-mad-s`, `pet-omat-l`, etc.
 
 ```python
 from upet.calculator import UPETCalculator
@@ -133,12 +134,12 @@ perform efficient evaluation in that case, read [here](docs/README_BATCHED.md).
 
 #### Non-conservative (direct) forces and stresses prediction
 
-UPET models also supports the direct prediction of forces and stresses. In that case,
+UPET models also support the direct prediction of forces and stresses. In that case,
 the forces and stresses are predicted as separate targets along with the energy
 target, i.e. not computed as derivatives of the energy using the PyTorch
 automatic differentiation. This approach typically leads to 2-3x speedup in the
 evaluation time, since backward pass is disabled. However, as discussed in [this
-preprint](https://arxiv.org/abs/2412.11569) it requires additional care to avoid
+preprint](https://arxiv.org/abs/2412.11569), the non-conservative forces and stresses require additional care to avoid
 instabilities during the molecular dynamics simulations.
 
 To use the non-conservative forces and stresses, you need to set the `non_conservative` parameter to `True` when initializing the `UPETCalculator` class.
@@ -178,7 +179,7 @@ import upet
 upet.save_upet(
     model="pet-mad",
     size="s",
-    version="v1.0.2",
+    version="1.0.2",
     output="model.pt",
 )
 ```
@@ -209,9 +210,9 @@ can be found in the [Metatrain documentation](https://metatensor.github.io/metat
 
 UPET models can also be used to calculate the uncertainty of the energy prediction.
 This feature is particularly important if you are interested in probing the model
-on the data that is far away from the training data. Another important use case
-is a propagation of the uncertainty of the energy prediction to other observables,
-like phase transition temperatures, diffusion coefficients, etc.
+on the data that is substantially different from the training data. Another important 
+use case is a propagation of the uncertainty of the energy prediction to other
+observables, like phase transition temperatures, diffusion coefficients, etc.
 
 To evaluate the uncertainty of the energy prediction, or to get an ensemble of energy
 predictions, you can use the `get_energy_uncertainty` and `get_energy_ensemble` methods
@@ -476,7 +477,7 @@ fermi_levels = pet_mad_dos_calculator.calculate_efermi([atoms_1, atoms_2], dos=d
 
 ## Dataset visualization with the PET-MAD featurizer
  
-You can use PET-MAD last-layer features together with a pre-trained 
+You can use the last-layer features of the PET-MAD model together with a pre-trained 
 sketch-map dimensionality reduction to obtain 2D and 3D representations
 of a dataset, e.g. to identify structural or chemical motifs.
 This can be used as a stand-alone feature builder, or combined with
