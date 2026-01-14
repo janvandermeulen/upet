@@ -15,5 +15,5 @@ point on the right).
 Then, we present a benchmark we ran on carbon structures using models trained on the
 SPICE dataset. This benchmark was run on an A100 GPU.
 <p align="center">
-  <img src="static/speed-spice.png" alt="speed-spice" width="450">
+  <img src="static/speed-spice.png" alt="speed-spice">
 </p>
