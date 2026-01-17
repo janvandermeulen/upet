@@ -610,7 +610,8 @@ Additional documentation can be found in the
 - Try to use LAMMPS (Kokkos-GPU version) and run with multiple MPI tasks to enable domain decomposition
 - As a last resort, use non-conservative forces and stresses
 - If you hit a weird bug when running more than 65535 atoms on GPU, this is not an out-of-memory bug, but a
-  pytorch bug. You can fix it by adding `torch.backends.cuda.enable_mem_efficient_sdp(False)` at the
+  pytorch bug. You can fix it by adding `torch.backends.cuda.enable_mem_efficient_sdp(False)`
+  (after importing torch) near the top of your file.
   top of your file.
 
 **The model is not fully equivariant. Should I worry?**
