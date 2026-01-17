@@ -8,7 +8,7 @@
 > [!WARNING]
 > This repository is a successor of the PET-MAD repository, which is now deprecated.
 > The package has been renamed to **UPET** to reflect the broader scope of the models
-> and functionalities provided, going beyond the original PET-MAD model.
+> and functionalities provided, that go beyond the original PET-MAD model.
 > Please use the version `1.4.4` of PET-MAD package if you want to use the old API.
 > The older version of the README file with documentation is avaiable [here](docs/README_OLD.md).
 > The migration guide from PET-MAD to UPET is available [here](docs/UPET_MIGRATION_GUIDE.md).
@@ -60,6 +60,7 @@ the density of states (DOS) of materials, as well as their Fermi levels and band
     - [Evaluating UPET models on a dataset](#evaluating-upet-models-on-a-dataset)
     - [Running UPET models with LAMMPS](#running-upet-models-with-lammps)
     - [Uncertainty Quantification](#uncertainty-quantification)
+    - [Rotational Averaging](#rotational-averaging)
     - [Running UPET models with empirical dispersion corrections](#running-upet-models-with-empirical-dispersion-corrections)
     - [Calculating the DOS, Fermi levels, and bandgaps](#calculating-the-dos-fermi-levels-and-bandgaps)
     - [Dataset visualization with the PET-MAD featurizer](#dataset-visualization-with-the-pet-mad-featurizer)
@@ -90,11 +91,17 @@ Currently, we provide the following pre-trained models:
 | Name        | Level of theory         | Available sizes        | To be used for          | Training set          |
 |:------------|:-----------------------:|:----------------------:|:-----------------------:|:---------------------:|
 | PET-MAD     | PBEsol                  | S                      | materials and molecules | MAD                   |
-| PET-OMAD    | PBEsol                  | L                      | materials and molecules | OMat -> MAD           |
-| PET-OMATPES | r2SCAN                  | L                      | materials               | OMat -> MATPES        |
-| PET-OMat    | PBE                     | XS, S, M, L, XL        | materials               | OMat                  |
+| PET-OMAD    | PBEsol                  | XS, S, L               | materials and molecules | OMat -> MAD           |
 | PET-OAM     | PBE (Materials Project) | L, XL                  | materials               | OMat -> sAlex+MPtrj   |
+| PET-OMat    | PBE                     | XS, S, M, L, XL        | materials               | OMat                  |
+| PET-OMATPES | r2SCAN                  | L                      | materials               | OMat -> MATPES        |
 | PET-SPICE   | ωB97M-D3                | S, L                   | molecules               | SPICE                 | 
+
+We recommend using the PET-MAD model for molecular dynamics simulations of materials, PET-OAM models for materials 
+discovery tasks (convex hull energies, geometry optimization, phonons, etc), and PET-SPICE for accurate and fast 
+simulations of biomolecules. PET-OMAD models are more accurate and potentially faster than PET-MAD,
+but they were not tested as extensively yet. PET-OMATPES can be a good choice in case the accuracy of the PBE
+functinals is not sufficient for your application.
 
 All the checkpoints are available on the HuggingFace [repository](https://huggingface.co/lab-cosmo/upet).
 
@@ -239,6 +246,48 @@ per atom or for the whole system. More details on the uncertainty quantification
 ensemble method can be found in [this](https://doi.org/10.1088/2632-2153/ad594a) and
 [this](https://doi.org/10.1088/2632-2153/ad805f) papers. 
 
+
+### Rotational Averaging
+
+By design, UPET models are not exactly equivariant w.r.t. rotations and inversions. Although
+the equivariance error is typically much smaller than the overall model error, in some cases
+(like geometry optimizations and phonon calculations of highly symmetrical structures)
+it may be beneficial to enforce additional rotational averaging to improve the stability
+of the calculation. This can be done by setting the `rotational_average_order` parameter
+when initializing the `UPETCalculator` class:
+
+```python
+from upet.calculator import UPETCalculator
+from ase.build import bulk
+
+atoms = bulk("Si", cubic=True, a=5.43, crystalstructure="diamond")
+calculator = UPETCalculator(model="pet-mad-s", version="1.0.2", device="cpu", rotational_average_order=3)
+atoms.calc = calculator
+energy = atoms.get_potential_energy()
+forces = atoms.get_forces()
+stresses = atoms.get_stress()
+```
+
+In this case, predictions will be averaged over a quadrature of the O(3) group based on a Lebedev grid of the 
+specified order (here 3). Higher orders lead to more accurate equivariance, but also increase the computational cost.
+
+By default, all the transformed structures are evaluated in a single batch, which may lead to high memory usage
+for large systems. If you want to reduce the memory usage, you can set the `rotational_average_batch_size` 
+parameter to a smaller value (eg. 8), which will evaluate the transformed structures in smaller batches:
+
+```python
+from upet.calculator import UPETCalculator
+calculator = UPETCalculator(model="pet-mad-s", version="1.0.2", device="cpu", rotational_average_order=3, rotational_average_batch_size=8)
+```
+
+Finally, the rotatinal averaging error statistics are stored in the `results` dictionary of the calculator
+after the energy/forces/stresses are computed:
+
+```python
+energy_rot_std = calculator.results['energy_rot_std']
+forces_rot_std = calculator.results['forces_rot_std']
+stresses_rot_std = calculator.results['stresses_rot_std']
+```
 
 ## Running UPET models with LAMMPS
 
@@ -533,19 +582,36 @@ Additional documentation can be found in the
 
 ## FAQs
 
+**What model should I use for my application?**
+- For molecular dynamics simulations, we recommend using the **PET-MAD** model. Alternatively,
+  you can use the **PET-OMAD** models, which are more accurate and potentially
+  faster, but they were not tested as extensively yet.
+- For materials discovery tasks (convex hull energies, geometry optimization, phonons, etc),
+  we recommend using the **PET-OAM** models.
+- For accurate and fast simulations of biomolecules, we recommend using the **PET-SPICE** models.
+- In case the accuracy of the PBE functionals is not sufficient for your application,
+  you can try the **PET-OMATPES** model for simulations of materials.
+- If you want to fine-tune your own model, we recommend starting from the **PET-OMAT** checkpoints,
+  and select an appropriate size (from XS to XL) for your needs.
+- In any case, we recommend starting from the smaller models (XS or S) to benchmark your application,
+  and then scaling up to larger models if you need more accuracy.
+
 **The model is slow for my application. What should I do?**
 - Make sure you run it on a GPU
 - Use an S or XS model
 - Simulate with LAMMPS (Kokkos-GPU version)
-- Use non-conservative forces and stresses, preferably with multiple time stepping: https://atomistic-cookbook.org/examples/pet-mad-nc/pet-mad-nc.html
+- Use non-conservative forces and stresses, preferably with multiple time stepping. Check out 
+  [this example](https://atomistic-cookbook.org/examples/pet-mad-nc/pet-mad-nc.html) for details.
 - Still too slow? Check out [FlashMD](https://github.com/lab-cosmo/flashmd) for a further 30x boost.
 
 **My MD ran out of memory. How do I fix that?**
 - Reduce the model size (XS models are the least memory-intensive)
 - Reduce the structure size
+- Try to use LAMMPS (Kokkos-GPU version) and run with multiple MPI tasks to enable domain decomposition
 - As a last resort, use non-conservative forces and stresses
 
 **The model is not fully equivariant. Should I worry?**
+
 Although our models are unconstrained, they are explicitly trained for equivariance, and the equivariance error
 is, in the vast majority of cases, one to two orders of magnitude smaller than the machine-learning error with
 respect to the target electronic structure method. Hence:
