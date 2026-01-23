@@ -635,6 +635,15 @@ There are two aspects to this:
 If you use any of the UPET models in your research, please cite the corresponding articles:
 
 ```bibtex
+@misc{pushing-unconstrained-2026,
+      title={Pushing the limits of unconstrained machine-learned interatomic potentials}, 
+      author={Filippo Bigi and Paolo Pegolo and Arslan Mazitov and Michele Ceriotti},
+      year={2026},
+      eprint={2601.16195},
+      archivePrefix={arXiv},
+      primaryClass={physics.chem-ph},
+      url={https://arxiv.org/abs/2601.16195}, 
+}
 @misc{PET-MAD-2025,
       title={PET-MAD as a lightweight universal interatomic potential for advanced materials modeling},
       author={Mazitov, Arslan and Bigi, Filippo and Kellner, Matthias and Pegolo, Paolo and Tisi, Davide and Fraux, Guillaume and Pozdnyakov, Sergey and Loche, Philip and Ceriotti, Michele},
