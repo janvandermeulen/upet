@@ -632,9 +632,18 @@ There are two aspects to this:
 
 ## Citing UPET Models
 
-If you use any of the UPET models in your research, please cite the corresponding articles:
+If you use any of the UPET models in your research, please cite the appropriate article:
 
 ```bibtex
+@misc{pushing-unconstrained-2026,
+      title={Pushing the limits of unconstrained machine-learned interatomic potentials}, 
+      author={Filippo Bigi and Paolo Pegolo and Arslan Mazitov and Michele Ceriotti},
+      year={2026},
+      eprint={2601.16195},
+      archivePrefix={arXiv},
+      primaryClass={physics.chem-ph},
+      url={https://arxiv.org/abs/2601.16195}, 
+}
 @misc{PET-MAD-2025,
       title={PET-MAD as a lightweight universal interatomic potential for advanced materials modeling},
       author={Mazitov, Arslan and Bigi, Filippo and Kellner, Matthias and Pegolo, Paolo and Tisi, Davide and Fraux, Guillaume and Pozdnyakov, Sergey and Loche, Philip and Ceriotti, Michele},
@@ -643,7 +652,6 @@ If you use any of the UPET models in your research, please cite the correspondin
       number={1},
       pages={10653},
       year={2025},
-      publisher={Nature Publishing Group UK London},
       url={https://doi.org/10.1038/s41467-025-65662-7},
 }
 @misc{PET-MAD-DOS-2025,
@@ -655,3 +663,16 @@ If you use any of the UPET models in your research, please cite the correspondin
       primaryClass={physics.chem-ph},
       url={https://arxiv.org/abs/2508.17418}, 
 }
+```
+
+For a general citation for the PET architecture, you can use
+```
+@misc{PET-ECSE-2023,
+  title = {Smooth, Exact Rotational Symmetrization for Deep Learning on Point Clouds},
+  journal = {Advances in {{Neural Information Processing Systems}}},
+  author = {Pozdnyakov, Sergey and Ceriotti, Michele},
+  year = 2023,
+  volume = {36},
+  pages = {79469--79501},
+}
+```
