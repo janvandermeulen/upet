@@ -31,8 +31,9 @@ def upet_get_size_to_load(model: str, requested_size: Optional[str] = None) -> s
     """
     # We need to inspect the models in https://huggingface.co/lab-cosmo/upet/tree/main/models
     # and get the available sizes for each model.
-    hf_api = HfApi()
-    repo_files = hf_api.list_repo_files("lab-cosmo/upet")
+    #hf_api = HfApi()
+    #repo_files = hf_api.list_repo_files("lab-cosmo/upet")
+    repo_files = ['.gitattributes', 'README.md', 'models/pet-mad-s-v1.0.2.ckpt', 'models/pet-mad-s-v1.1.0.ckpt', 'models/pet-oam-l-v0.1.0.ckpt', 'models/pet-oam-xl-v1.0.0.ckpt', 'models/pet-omad-l-v0.1.0.ckpt', 'models/pet-omad-s-v1.0.0.ckpt', 'models/pet-omad-xs-v1.0.0.ckpt', 'models/pet-omat-l-v0.1.0.ckpt', 'models/pet-omat-l-v0.2.0.ckpt', 'models/pet-omat-l-v1.0.0.ckpt', 'models/pet-omat-m-v0.2.0.ckpt', 'models/pet-omat-m-v1.0.0.ckpt', 'models/pet-omat-s-v0.2.0.ckpt', 'models/pet-omat-s-v1.0.0.ckpt', 'models/pet-omat-xl-v1.0.0.ckpt', 'models/pet-omat-xs-v0.2.0.ckpt', 'models/pet-omat-xs-v1.0.0.ckpt', 'models/pet-omatpes-l-v0.1.0.ckpt', 'models/pet-spice-l-v0.2.0.ckpt', 'models/pet-spice-s-v0.2.0.ckpt']
     files_in_models_folder = [f[7:] for f in repo_files if f.startswith("models/")]
     all_model_files = [
         f
@@ -79,8 +80,9 @@ def upet_get_version_to_load(
     if requested_version == "latest":
         requested_version = None
 
-    hf_api = HfApi()
-    repo_files = hf_api.list_repo_files("lab-cosmo/upet")
+    # hf_api = HfApi()
+    # repo_files = hf_api.list_repo_files("lab-cosmo/upet")
+    repo_files = ['.gitattributes', 'README.md', 'models/pet-mad-s-v1.0.2.ckpt', 'models/pet-mad-s-v1.1.0.ckpt', 'models/pet-oam-l-v0.1.0.ckpt', 'models/pet-oam-xl-v1.0.0.ckpt', 'models/pet-omad-l-v0.1.0.ckpt', 'models/pet-omad-s-v1.0.0.ckpt', 'models/pet-omad-xs-v1.0.0.ckpt', 'models/pet-omat-l-v0.1.0.ckpt', 'models/pet-omat-l-v0.2.0.ckpt', 'models/pet-omat-l-v1.0.0.ckpt', 'models/pet-omat-m-v0.2.0.ckpt', 'models/pet-omat-m-v1.0.0.ckpt', 'models/pet-omat-s-v0.2.0.ckpt', 'models/pet-omat-s-v1.0.0.ckpt', 'models/pet-omat-xl-v1.0.0.ckpt', 'models/pet-omat-xs-v0.2.0.ckpt', 'models/pet-omat-xs-v1.0.0.ckpt', 'models/pet-omatpes-l-v0.1.0.ckpt', 'models/pet-spice-l-v0.2.0.ckpt', 'models/pet-spice-s-v0.2.0.ckpt']
     files_in_models_folder = [f[7:] for f in repo_files if f.startswith("models/")]
     all_model_files = [
         f
