@@ -1,3 +1,8 @@
+# Internet free fork
+In this the connection to the huggingface API will be removed. 
+
+# Original Readme
+
 <div align="center" width="600">
   <picture>
     <source srcset="https://github.com/lab-cosmo/upet/raw/refs/heads/main/docs/static/upet-logo-with-text-dark.svg" media="(prefers-color-scheme: dark)">
