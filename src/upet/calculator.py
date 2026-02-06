@@ -164,7 +164,23 @@ class UPETCalculator(ase.calculators.calculator.Calculator):
 
         pt_path = cache_dir + f"/{model}-{size}-v{version}.pt"
         logging.info(f"Exporting checkpoint to TorchScript at {pt_path}")
-        loaded_model.save(pt_path, collect_extensions=None)
+        # Updated for atomicity for multiple GPU-setup.
+        if not os.path.exists(pt_path):
+            temp_path = pt_path + f".tmp.{os.getpid()}"
+            try: 
+                print("Saving torchscript now in for MetaTomic (the internal calculator).")
+                loaded_model.save(temp_path, collect_extensions=None)
+                # OS .rename is an atomic write 
+                # If another process beat us to it, os.rename might fail or overwrite safely
+                os.rename(temp_path, pt_path)
+            except Exception as e:
+                # If renaming fails. Just clean up.
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                # If we failed for some reason that is not somebody else creating the file at the same time. 
+                # Throw an error, otherwise the code will crash silently in two lines.
+                if not os.path.exists(pt_path):
+                    raise RuntimeError(f"Could not save model to {pt_path} and it does not exist.") from e
 
         self.calculator = MetatomicCalculator(
             pt_path,

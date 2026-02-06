@@ -1,4 +1,4 @@
-__version__ = "0.1.1+custom"
+__version__ = "0.1.2"
 
 from ._models import get_upet, save_upet
 

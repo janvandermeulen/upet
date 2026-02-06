@@ -1,6 +1,8 @@
-# Internet free fork
-In this the connection to the huggingface API will be removed. 
-
+# Multi-GPU Save and Internet Free Fork
+1. In this the connection to the huggingface API is removed, making it saver for experiments where internet connection might be weak. This does mean you have to provide your own checkpoitn files.  
+2. Some race conditions for a multi-GPU setup fixed. At least enough to get my own code working. If you run this on a shared-memory system after a while it corrupts its own memory on torchscript files.  
+   1. NOTE: I did not fix that you can directly move a model to the desired GPU (e.g. ```cuda:2```) as the model only accepts ```cuda``` or ```cpu``` causing it to not start at all. The patch I used is first moving a model to cpu and then later manually moving the internal model (Metatomic calculator) to the desired GPU. 
+  
 # Original Readme
 
 <div align="center" width="600">
@@ -55,25 +57,36 @@ the density of states (DOS) of materials, as well as their Fermi levels and band
 - **HPC Compatibility**: Efficient in HPC environments for extensive simulations.
 
 ## Table of Contents
-1. [Installation](#installation)
-2. [Pre-trained Models](#pre-trained-models)
-3. [Interfaces for Atomistic Simulations](#interfaces-for-atomistic-simulations)
-4. [Usage](#usage)
+- [Multi-GPU Save and Internet Free Fork](#multi-gpu-save-and-internet-free-fork)
+- [Original Readme](#original-readme)
+- [UPET: Universal Models for Advanced Atomistic Simulations](#upet-universal-models-for-advanced-atomistic-simulations)
+  - [Key Features](#key-features)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Pre-trained Models](#pre-trained-models)
+  - [Interfaces for Atomistic Simulations](#interfaces-for-atomistic-simulations)
+  - [Usage](#usage)
     - [ASE Interface](#ase-interface)
-        - [Basic usage](#basic-usage)
-        - [Non-conservative (direct) forces and stresses prediction](#non-conservative-direct-forces-and-stresses-prediction)
+      - [Basic usage](#basic-usage)
+      - [Non-conservative (direct) forces and stresses prediction](#non-conservative-direct-forces-and-stresses-prediction)
     - [Evaluating UPET models on a dataset](#evaluating-upet-models-on-a-dataset)
-    - [Running UPET models with LAMMPS](#running-upet-models-with-lammps)
     - [Uncertainty Quantification](#uncertainty-quantification)
     - [Rotational Averaging](#rotational-averaging)
-    - [Running UPET models with empirical dispersion corrections](#running-upet-models-with-empirical-dispersion-corrections)
-    - [Calculating the DOS, Fermi levels, and bandgaps](#calculating-the-dos-fermi-levels-and-bandgaps)
-    - [Dataset visualization with the PET-MAD featurizer](#dataset-visualization-with-the-pet-mad-featurizer)
-5. [Examples](#examples)
-6. [Fine-tuning](#fine-tuning)
-7. [Further Documentation](#further-documentation)
-8. [FAQs](#faqs)
-9. [Citing PET-MAD](#citing-pet-mad)
+  - [Running UPET models with LAMMPS](#running-upet-models-with-lammps)
+    - [1. Install LAMMPS with metatomic support](#1-install-lammps-with-metatomic-support)
+    - [2. Run LAMMPS with UPET](#2-run-lammps-with-upet)
+      - [2.1. CPU version](#21-cpu-version)
+      - [2.2. KOKKOS-enabled GPU version](#22-kokkos-enabled-gpu-version)
+    - [3. Important Notes](#3-important-notes)
+  - [Running UPET models with empirical dispersion corrections](#running-upet-models-with-empirical-dispersion-corrections)
+    - [In **ASE**:](#in-ase)
+  - [Calculating the DOS, Fermi levels, and bandgaps](#calculating-the-dos-fermi-levels-and-bandgaps)
+  - [Dataset visualization with the PET-MAD featurizer](#dataset-visualization-with-the-pet-mad-featurizer)
+  - [Examples](#examples)
+  - [Fine-tuning](#fine-tuning)
+  - [Further Documentation](#further-documentation)
+  - [FAQs](#faqs)
+  - [Citing UPET Models](#citing-upet-models)
 
 ## Installation
 
